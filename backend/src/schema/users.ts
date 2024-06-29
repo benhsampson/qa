@@ -1,4 +1,5 @@
 import { pgTable, serial, text, uniqueIndex } from 'drizzle-orm/pg-core';
+
 import { dbUtils } from '../utils/db';
 
 export const EMAIL_UNIQUE_INDEX = 'email_unique_index';

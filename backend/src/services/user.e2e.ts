@@ -14,7 +14,7 @@ import { db } from '../lib/db';
 import { users } from '../schema';
 import { testUtils } from '../utils/testing';
 
-const preInsertUser = (email: string, password: string) => async () => {
+export const preInsertUser = (email: string, password: string) => async () => {
   await db
     .insert(users)
     .values({
@@ -99,10 +99,7 @@ describe('getUserProfile', { concurrency: true }, () => {
 
   testUtils.before_(async () => {
     await preInsertUser(EMAIL, PASSWORD)();
-    const [user] = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.email, EMAIL));
+    const user = await userService.getUserByEmail(EMAIL);
     assert.ok(user);
     userId = user.id;
   });

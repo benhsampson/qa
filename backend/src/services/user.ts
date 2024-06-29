@@ -1,10 +1,10 @@
 import bcrypt from 'bcrypt';
 import assert from 'assert/strict';
 import { eq } from 'drizzle-orm';
+import { PostgresError } from 'postgres';
 
 import { db } from '../lib/db';
 import { users } from '../schema';
-import { PostgresError } from 'postgres';
 import { POSTGRES_ERROR_CODES } from '../errors/postgres';
 import { EMAIL_UNIQUE_INDEX } from '../schema/users';
 import {
@@ -71,10 +71,19 @@ const getUserProfile = async (id: number) => {
   return user;
 };
 
+const getUserByEmail = async (email: string) => {
+  const [user] = await db
+    .select({ id: users.id, email: users.email })
+    .from(users)
+    .where(eq(users.email, email));
+  return user;
+};
+
 export const userService = {
   hashPassword,
   comparePassword,
   signUp,
   login,
   getUserProfile,
+  getUserByEmail,
 };

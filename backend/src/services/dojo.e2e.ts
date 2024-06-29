@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-floating-promises */
 
 import assert from 'assert/strict';
-import test, { describe, it } from 'node:test';
+import { describe, it } from 'node:test';
 
 import { testUtils } from '../utils/testing';
 import { preInsertUser } from './user.e2e';
@@ -48,6 +48,15 @@ describe(() => {
     await t.test('has teacher role', async () => {
       assert.equal(await dojoService.hasRole(id, masterId, 'teacher'), true);
     });
+
+    await t.test('can update dojo', async () => {
+      const NEW_NAME = 'My Dojo Updated';
+
+      const updated = await dojoService.update(id, NEW_NAME);
+      assert.equal(updated.name, NEW_NAME);
+      const queried = await dojoService.getDojoById(id);
+      assert.equal(queried?.id, id);
+    });
   });
 
   it('can add users to a dojo', async (t) => {
@@ -62,25 +71,22 @@ describe(() => {
       dojoId = dojo.id;
     });
 
-    await t.test('successful', async () => {
+    await t.test('1st time', async () => {
       testUtils.assert_.notNullOrUndefined(dojoId);
 
-      await dojoService.addUsers(dojoId, [
+      await dojoService.addUsersByIds(dojoId, [
         { userId: studentId, role: 'student' },
       ]);
     });
 
-    await t.test(
-      'adding same user twice throws AlreadyAddedToDojoError',
-      async () => {
-        await assert.rejects(
-          () =>
-            dojoService.addUsers(dojoId, [
-              { userId: studentId, role: 'student' },
-            ]),
-          AlreadyAddedToDojoError
-        );
-      }
-    );
+    await t.test('2nd time throws AlreadyAddedToDojoError', async () => {
+      await assert.rejects(
+        () =>
+          dojoService.addUsersByIds(dojoId, [
+            { userId: studentId, role: 'student' },
+          ]),
+        AlreadyAddedToDojoError
+      );
+    });
   });
 });

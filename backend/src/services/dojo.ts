@@ -1,4 +1,6 @@
 import assert from 'assert/strict';
+import { and, eq } from 'drizzle-orm';
+import { PostgresError } from 'postgres';
 
 import { db } from '../lib/db';
 import { dojos } from '../schema/dojos';
@@ -8,10 +10,8 @@ import {
   type UserDojoRole,
   USER_DOJOS_PK,
 } from '../schema/user_dojos';
-import { and, eq } from 'drizzle-orm';
-import { PostgresError } from 'postgres';
 import { POSTGRES_ERROR_CODES } from '../errors/postgres';
-import { AlreadyAddedToDojoError } from '../errors/dojo';
+import { AlreadyAddedToDojoError, DojoNotFoundError } from '../errors/dojo';
 
 const create = async (name: string, userId: number) => {
   return db.transaction(async (tx) => {
@@ -27,16 +27,30 @@ const create = async (name: string, userId: number) => {
   });
 };
 
-const hasRole = async (dojoId: number, userId: number, role: UserDojoRole) => {
+const update = async (id: number, name: string) => {
+  const [dojo] = await db
+    .update(dojos)
+    .set({ name })
+    .where(eq(dojos.id, id))
+    .returning();
+  if (!dojo) {
+    throw new DojoNotFoundError();
+  }
+  return dojo;
+};
+
+const hasRole = async (id: number, userId: number, role: UserDojoRole) => {
   const [dojo] = await db
     .select({ role: userDojos.role })
     .from(userDojos)
-    .where(and(eq(userDojos.dojo_id, dojoId), eq(userDojos.user_id, userId)));
-  assert.ok(dojo);
+    .where(and(eq(userDojos.dojo_id, id), eq(userDojos.user_id, userId)));
+  if (!dojo) {
+    throw new DojoNotFoundError();
+  }
   return dojo.role === role;
 };
 
-const addUsers = async (
+const addUsersByIds = async (
   dojoId: number,
   usersToAdd: { userId: number; role: UserDojoRole }[]
 ) => {
@@ -62,8 +76,15 @@ const addUsers = async (
   }
 };
 
+const getDojoById = async (id: number) => {
+  const [dojo] = await db.select().from(dojos).where(eq(dojos.id, id));
+  return dojo;
+};
+
 export const dojoService = {
   create,
+  update,
   hasRole,
-  addUsers,
+  addUsersByIds,
+  getDojoById,
 };

@@ -20,6 +20,9 @@ dependencies:
   eslint-config-prettier:
     specifier: ^9.1.0
     version: 9.1.0(eslint@9.6.0)
+  lodash:
+    specifier: ^4.17.21
+    version: 4.17.21
   postgres:
     specifier: ^3.4.4
     version: 3.4.4
@@ -43,6 +46,9 @@ devDependencies:
   '@types/eslint__js':
     specifier: ^8.42.3
     version: 8.42.3
+  '@types/lodash':
+    specifier: ^4.17.6
+    version: 4.17.6
   '@types/node':
     specifier: ^20.14.9
     version: 20.14.9
@@ -1250,6 +1256,10 @@ packages:
       '@types/keygrip': 1.0.6
       '@types/koa-compose': 3.2.8
       '@types/node': 20.14.9
+    dev: true
+
+  /@types/lodash@4.17.6:
+    resolution: {integrity: sha512-OpXEVoCKSS3lQqjx9GGGOapBeuW5eUboYHRlHP9urXPX25IKZ6AnP5ZRxtVf63iieUbsHxLn8NQ5Nlftc6yzAA==}
     dev: true
 
   /@types/mime@1.3.5:
@@ -3523,7 +3533,6 @@ packages:
 
   /lodash@4.17.21:
     resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
-    dev: true
 
   /log-update@4.0.0:
     resolution: {integrity: sha512-9fkkDevMefjg0mmzWFBW8YkFP91OrizzkW3diF7CpG+S2EYdy4+TVfGwz1zeF8x7hCx1ovSPTOE9Ngib74qqUg==}

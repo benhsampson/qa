@@ -15,3 +15,9 @@ export class IncorrectPasswordError extends Error {
     super(message ?? 'Incorrect password.');
   }
 }
+
+export class UserHasNoPassword extends Error {
+  constructor(message?: string) {
+    super(message ?? 'User has no password.');
+  }
+}

@@ -4,12 +4,13 @@ import { eq } from 'drizzle-orm';
 import { PostgresError } from 'postgres';
 
 import { db } from '../lib/db';
-import { users } from '../schema';
+import { usersTable } from '../schema';
 import { POSTGRES_ERROR_CODES } from '../errors/postgres';
 import { EMAIL_UNIQUE_INDEX } from '../schema/users';
 import {
   EmailTakenError,
   IncorrectPasswordError,
+  UserHasNoPassword,
   UserNotExistsError,
 } from '../errors/user';
 
@@ -30,11 +31,11 @@ const signUp = async (email: string, password: string) => {
   const hash = await hashPassword(password);
   try {
     const [user] = await db
-      .insert(users)
+      .insert(usersTable)
       .values({ email, password: hash })
       .returning({
-        id: users.id,
-        email: users.email,
+        id: usersTable.id,
+        email: usersTable.email,
       });
     assert.ok(user);
     return user;
@@ -51,9 +52,15 @@ const signUp = async (email: string, password: string) => {
 };
 
 const login = async (email: string, password: string) => {
-  const [user] = await db.select().from(users).where(eq(users.email, email));
+  const [user] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.email, email));
   if (!user) {
     throw new UserNotExistsError(`User with email ${email} does not exist.`);
+  }
+  if (!user.password) {
+    throw new UserHasNoPassword();
   }
   if (!(await comparePassword(password, user.password))) {
     throw new IncorrectPasswordError();
@@ -62,9 +69,9 @@ const login = async (email: string, password: string) => {
 
 const getUserProfile = async (id: number) => {
   const [user] = await db
-    .select({ id: users.id, email: users.email })
-    .from(users)
-    .where(eq(users.id, id));
+    .select({ id: usersTable.id, email: usersTable.email })
+    .from(usersTable)
+    .where(eq(usersTable.id, id));
   if (!user) {
     throw new UserNotExistsError(`User not found`);
   }
@@ -73,9 +80,9 @@ const getUserProfile = async (id: number) => {
 
 const getUserByEmail = async (email: string) => {
   const [user] = await db
-    .select({ id: users.id, email: users.email })
-    .from(users)
-    .where(eq(users.email, email));
+    .select({ id: usersTable.id, email: usersTable.email })
+    .from(usersTable)
+    .where(eq(usersTable.email, email));
   return user;
 };
 

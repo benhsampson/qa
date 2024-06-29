@@ -11,12 +11,12 @@ import {
   UserNotExistsError,
 } from '../errors/user';
 import { db } from '../lib/db';
-import { users } from '../schema';
+import { usersTable } from '../schema';
 import { testUtils } from '../utils/testing';
 
 export const preInsertUser = (email: string, password: string) => async () => {
   await db
-    .insert(users)
+    .insert(usersTable)
     .values({
       email,
       password: await userService.hashPassword(password),
@@ -37,7 +37,7 @@ describe('signUp', { concurrency: true }, () => {
     });
 
     testUtils.after_(async () => {
-      await db.delete(users).where(eq(users.email, EMAIL));
+      await db.delete(usersTable).where(eq(usersTable.email, EMAIL));
     });
   });
 

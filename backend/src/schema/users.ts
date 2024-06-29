@@ -4,12 +4,12 @@ import { dbUtils } from '../utils/db';
 
 export const EMAIL_UNIQUE_INDEX = 'email_unique_index';
 
-export const users = pgTable(
+export const usersTable = pgTable(
   'users',
   {
     id: serial('id').primaryKey(),
     email: text('email').notNull(),
-    password: text('password').notNull(),
+    password: text('password'),
   },
   (table) => ({
     emailUniqueIndex: uniqueIndex(EMAIL_UNIQUE_INDEX).on(
@@ -18,5 +18,5 @@ export const users = pgTable(
   })
 );
 
-export type User = typeof users.$inferSelect;
-export type NewUser = typeof users.$inferInsert;
+export type User = typeof usersTable.$inferSelect;
+export type NewUser = typeof usersTable.$inferInsert;

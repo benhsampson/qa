@@ -1,3 +1,3 @@
-export { users } from './users';
-export { userDojoRole, userDojos } from './user_dojos';
-export { dojos } from './dojos';
+export { usersTable } from './users';
+export { userDojoRole, userDojosTable } from './user_dojos';
+export { dojosTable } from './dojos';

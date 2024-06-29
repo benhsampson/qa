@@ -1,27 +1,29 @@
 import assert from 'assert/strict';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { PostgresError } from 'postgres';
+import _ from 'lodash';
 
 import { db } from '../lib/db';
-import { dojos } from '../schema/dojos';
+import { dojosTable } from '../schema/dojos';
 import {
   type NewUserDojo,
-  userDojos,
+  userDojosTable,
   type UserDojoRole,
   USER_DOJOS_PK,
 } from '../schema/user_dojos';
 import { POSTGRES_ERROR_CODES } from '../errors/postgres';
 import { AlreadyAddedToDojoError, DojoNotFoundError } from '../errors/dojo';
+import { usersTable } from '../schema';
 
 const create = async (name: string, userId: number) => {
   return db.transaction(async (tx) => {
     const [dojo] = await tx
-      .insert(dojos)
+      .insert(dojosTable)
       .values({ name, master: userId })
       .returning();
     assert.ok(dojo);
     await tx
-      .insert(userDojos)
+      .insert(userDojosTable)
       .values({ dojo_id: dojo.id, user_id: userId, role: 'teacher' });
     return dojo;
   });
@@ -29,9 +31,9 @@ const create = async (name: string, userId: number) => {
 
 const update = async (id: number, name: string) => {
   const [dojo] = await db
-    .update(dojos)
+    .update(dojosTable)
     .set({ name })
-    .where(eq(dojos.id, id))
+    .where(eq(dojosTable.id, id))
     .returning();
   if (!dojo) {
     throw new DojoNotFoundError();
@@ -41,9 +43,11 @@ const update = async (id: number, name: string) => {
 
 const hasRole = async (id: number, userId: number, role: UserDojoRole) => {
   const [dojo] = await db
-    .select({ role: userDojos.role })
-    .from(userDojos)
-    .where(and(eq(userDojos.dojo_id, id), eq(userDojos.user_id, userId)));
+    .select({ role: userDojosTable.role })
+    .from(userDojosTable)
+    .where(
+      and(eq(userDojosTable.dojo_id, id), eq(userDojosTable.user_id, userId))
+    );
   if (!dojo) {
     throw new DojoNotFoundError();
   }
@@ -55,7 +59,7 @@ const addUsersByIds = async (
   usersToAdd: { userId: number; role: UserDojoRole }[]
 ) => {
   try {
-    await db.insert(userDojos).values(
+    await db.insert(userDojosTable).values(
       usersToAdd.map(
         ({ userId, role }): NewUserDojo => ({
           user_id: userId,
@@ -76,8 +80,80 @@ const addUsersByIds = async (
   }
 };
 
+const addUsersByEmails = async (
+  dojoId: number,
+  usersToAdd: { email: string; role: UserDojoRole }[]
+) => {
+  const emailToUser = _.keyBy(usersToAdd, 'email');
+  const emailsToAdd = _.keys(emailToUser);
+
+  if (emailsToAdd.length === 0) return [];
+
+  const columns = { id: usersTable.id, email: usersTable.email };
+  const existingUsers = await db
+    .select(columns)
+    .from(usersTable)
+    .where(inArray(usersTable.email, emailsToAdd));
+
+  {
+    const existingUserDojos =
+      existingUsers.length > 0
+        ? await db
+            .select()
+            .from(userDojosTable)
+            .where(
+              inArray(
+                userDojosTable.user_id,
+                existingUsers.map((u) => u.id)
+              )
+            )
+            .innerJoin(usersTable, eq(userDojosTable.user_id, usersTable.id))
+        : [];
+    if (existingUserDojos.length > 0) {
+      throw new AlreadyAddedToDojoError(
+        `Users ${existingUserDojos.map((ud) => ud.users.email).join(', ')} already added.`
+      );
+    }
+  }
+
+  return db.transaction(async (tx) => {
+    const existingEmails = existingUsers.map((u) => u.email);
+    const newEmails = _.difference(emailsToAdd, existingEmails);
+    // create "ghost" users for those that don't exist yet
+    const newUsers =
+      newEmails.length > 0
+        ? await tx
+            .insert(usersTable)
+            .values(newEmails.map((email) => ({ email })))
+            .returning(columns)
+        : [];
+    const allUsers = [...existingUsers, ...newUsers];
+    assert.equal(allUsers.length, emailsToAdd.length);
+
+    const userDojos =
+      allUsers.length > 0
+        ? await tx
+            .insert(userDojosTable)
+            .values(
+              allUsers.map((u) => ({
+                dojo_id: dojoId,
+                user_id: u.id,
+                role: emailToUser[u.email]!.role,
+              }))
+            )
+            .returning()
+        : [];
+    assert.equal(userDojos.length, allUsers.length);
+
+    return userDojos;
+  });
+};
+
 const getDojoById = async (id: number) => {
-  const [dojo] = await db.select().from(dojos).where(eq(dojos.id, id));
+  const [dojo] = await db
+    .select()
+    .from(dojosTable)
+    .where(eq(dojosTable.id, id));
   return dojo;
 };
 
@@ -87,4 +163,5 @@ export const dojoService = {
   hasRole,
   addUsersByIds,
   getDojoById,
+  addUsersByEmails,
 };

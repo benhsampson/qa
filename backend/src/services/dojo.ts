@@ -2,20 +2,29 @@ import assert from 'assert/strict';
 
 import { db } from '../lib/db';
 import { dojos } from '../schema/dojos';
-import { userDojos, type UserDojoRole } from '../schema/user_dojos';
+import {
+  type NewUserDojo,
+  userDojos,
+  type UserDojoRole,
+  USER_DOJOS_PK,
+} from '../schema/user_dojos';
 import { and, eq } from 'drizzle-orm';
+import { PostgresError } from 'postgres';
+import { POSTGRES_ERROR_CODES } from '../errors/postgres';
+import { AlreadyAddedToDojoError } from '../errors/dojo';
 
 const create = async (name: string, userId: number) => {
-  const [dojo] = await db
-    .insert(dojos)
-    .values({ name, master: userId })
-    .returning();
-  assert.ok(dojo);
-  await db
-    .insert(userDojos)
-    .values({ dojo_id: dojo.id, user_id: userId, role: 'teacher' })
-    .returning();
-  return dojo;
+  return db.transaction(async (tx) => {
+    const [dojo] = await tx
+      .insert(dojos)
+      .values({ name, master: userId })
+      .returning();
+    assert.ok(dojo);
+    await tx
+      .insert(userDojos)
+      .values({ dojo_id: dojo.id, user_id: userId, role: 'teacher' });
+    return dojo;
+  });
 };
 
 const hasRole = async (dojoId: number, userId: number, role: UserDojoRole) => {
@@ -27,7 +36,34 @@ const hasRole = async (dojoId: number, userId: number, role: UserDojoRole) => {
   return dojo.role === role;
 };
 
+const addUsers = async (
+  dojoId: number,
+  usersToAdd: { userId: number; role: UserDojoRole }[]
+) => {
+  try {
+    await db.insert(userDojos).values(
+      usersToAdd.map(
+        ({ userId, role }): NewUserDojo => ({
+          user_id: userId,
+          dojo_id: dojoId,
+          role,
+        })
+      )
+    );
+  } catch (err) {
+    if (
+      err instanceof PostgresError &&
+      err.code === POSTGRES_ERROR_CODES.unique_violation &&
+      err.constraint_name === USER_DOJOS_PK
+    ) {
+      throw new AlreadyAddedToDojoError();
+    }
+    throw err;
+  }
+};
+
 export const dojoService = {
   create,
   hasRole,
+  addUsers,
 };

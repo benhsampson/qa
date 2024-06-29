@@ -8,9 +8,9 @@ export const userDojoRole = pgEnum('user_dojo_role', ['student', 'teacher']);
 export const userDojos = pgTable(
   'user_dojos',
   {
-    user_id: integer('user_id'),
-    dojo_id: integer('dojo_id'),
-    role: userDojoRole('role'),
+    user_id: integer('user_id').notNull(),
+    dojo_id: integer('dojo_id').notNull(),
+    role: userDojoRole('role').notNull(),
   },
   (table) => ({
     pk: primaryKey({
@@ -19,6 +19,9 @@ export const userDojos = pgTable(
     }),
   })
 );
+
+export type UserDojo = typeof userDojos.$inferSelect;
+export type NewUserDojo = typeof userDojos.$inferInsert;
 
 const e = z.enum(userDojoRole.enumValues);
 export type UserDojoRole = z.infer<typeof e>;
